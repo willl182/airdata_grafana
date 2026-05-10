@@ -17,11 +17,12 @@ Decidir:
 Resultado esperado:
 
 ```txt
-privacidad:
-dominio/subdominio:
-dominio Grafana permitido:
-formato principal:
-retencion de archivos:
+privacidad: publico
+dominio/subdominio: inicialmente IP:puerto, luego subdominio
+dominio Grafana permitido: solo grafana.canair.io
+formato principal: CSV largo
+formato secundario: CSV ancho opcional
+retencion de archivos: guardar por ahora, borrar manualmente despues
 ```
 
 ## Fase U1: validar datos
@@ -32,6 +33,7 @@ Tareas:
 - Compararlo con el CSV generado por el script.
 - Confirmar si `Series joined by time` sirve para el analisis.
 - Confirmar si tambien se necesitan sensores individuales.
+- Confirmar que el CSV largo es el formato principal para analisis en R.
 
 Preguntas a responder:
 
@@ -40,6 +42,11 @@ Preguntas a responder:
 - Los sensores esperados aparecen?
 - Hay valores faltantes aceptables?
 - Prefieres una tabla larga o una tabla ancha?
+
+Decision tomada:
+
+- El CSV largo sera la salida principal porque facilita procesamiento en R.
+- El CSV ancho queda como salida opcional para revision rapida o Excel.
 
 ## Fase U2: preparar VPS
 
@@ -65,12 +72,12 @@ free -h
 Resultado esperado:
 
 ```txt
-Docker:
-Docker Compose:
-RAM:
-disco libre:
-contenedores actuales:
-puerto disponible:
+Docker: Docker version 29.4.1, build 055a478
+Docker Compose: Docker Compose version v5.1.3
+RAM: 7.8 GiB total, 6.6 GiB disponible
+disco libre: 73 GB libres en /
+contenedores actuales: openclaw-hacw-openclaw-1, puerto 127.0.0.1:57086->57086/tcp
+puerto disponible: pendiente definir; candidatos 3001 o 8081
 ```
 
 ## Fase U3: red, dominio y acceso
@@ -88,15 +95,23 @@ Opciones:
 - Solo IP y puerto: mas rapido para prueba.
 - Subdominio con proxy: mejor para uso continuo.
 - Acceso privado por firewall/VPN: mas seguro.
+- Tailscale: recomendado para la primera version, porque permite probar la app en red privada sin exponerla publicamente ni configurar dominio/HTTPS desde el inicio.
 
 Resultado esperado:
 
 ```txt
-modo de acceso:
-puerto:
-dominio:
-proteccion:
+modo de acceso: Tailscale para pruebas iniciales
+puerto: 3001
+dominio: no por ahora; opcional despues con subdominio y HTTPS
+proteccion: acceso privado por Tailscale
 ```
+
+Decision operativa:
+
+- La V2 se probara primero en el VPS escuchando en el puerto `3001`.
+- El acceso inicial sera por la IP privada de Tailscale del VPS.
+- No se abrira el servicio como publico en internet durante la prueba inicial.
+- El dominio/subdominio queda para una fase posterior, cuando la app ya este validada.
 
 ## Fase U4: despliegue
 
@@ -130,16 +145,16 @@ Tareas:
 Recomendacion inicial:
 
 ```txt
-rango: 7 dias
+rango: maximo 10 dias por job en la primera version
 chunk: 1 dia
-modo: ambos
-salidas: json, csv_long, csv_wide, zip
+modo: todos los sensores disponibles en formato largo
+salidas: csv_long principal, csv_wide opcional, json interno, zip tecnico opcional
 ```
 
 Luego subir gradualmente:
 
 ```txt
-30 dias -> 90 dias -> historico completo
+10 dias estables -> evaluar si ampliar limite
 ```
 
 ## Fase U6: politicas operativas
@@ -166,12 +181,11 @@ politica ante fallos:
 
 ## Checklist rapido del usuario
 
-- [ ] Confirmar app privada/publica.
-- [ ] Confirmar acceso al VPS.
-- [ ] Confirmar Docker y Compose.
-- [ ] Confirmar puerto o dominio.
-- [ ] Confirmar formato CSV preferido.
-- [ ] Validar muestra contra Grafana Inspect.
-- [ ] Confirmar rango real objetivo.
+- [x] Confirmar app privada/publica.
+- [x] Confirmar acceso al VPS.
+- [x] Confirmar Docker y Compose.
+- [x] Confirmar puerto o dominio.
+- [x] Confirmar formato CSV preferido.
+- [x] Validar muestra contra Grafana Inspect.
+- [x] Confirmar rango real objetivo.
 - [ ] Confirmar politica de retencion.
-

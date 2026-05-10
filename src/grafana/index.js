@@ -3,4 +3,5 @@ module.exports = {
   ...require("./csv"),
   ...require("./downloader"),
   ...require("./explorer"),
+  ...require("./jobs"),
 };

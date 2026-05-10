@@ -12,6 +12,8 @@ Ejecutar las tareas automatizables para llevar el descargador actual a una V2 op
 - Guardar datos generados en `data/`.
 - Mantener secretos fuera de git.
 - Probar cada fase con un rango pequeno antes de avanzar.
+- Limitar la primera version a jobs de maximo 10 dias.
+- Usar chunks de 1 dia por defecto.
 
 ## Fase A1: preparar base tecnica
 
@@ -52,15 +54,19 @@ Tareas:
 
 - Implementar CSV largo canonico.
 - Implementar CSV ancho opcional.
-- Implementar CSV por sensor si es razonable con el schema capturado.
+- Dejar JSON crudo como artifact interno del job, no como descarga principal para el usuario.
+- Dejar ZIP como artifact tecnico opcional para respaldo/debug.
+- Implementar CSV por sensor solo si el schema capturado lo hace necesario.
 - Agregar dedupe inicial si hay traslapes.
-- Generar ZIP final del job.
+- Generar un CSV largo final por job como salida principal.
+- Generar un CSV ancho final por job como salida opcional.
 
 Criterios de cierre:
 
-- El job produce `raw/`, `csv/`, `manifest.jsonl`, `logs.txt` y `result.zip`.
-- El CSV largo tiene columnas de contexto.
-- El ZIP puede descargarse o abrirse localmente.
+- El job produce `raw/`, `csv/`, `manifest.jsonl` y `logs.txt`.
+- El CSV largo final tiene todas las estaciones/sensores disponibles en filas y columnas de contexto.
+- El CSV ancho final se genera como salida opcional.
+- El ZIP tecnico puede generarse o descargarse sin ser el flujo principal del usuario.
 
 ## Fase A4: API local
 
@@ -154,4 +160,3 @@ Criterios de cierre:
 - Documentacion.
 - Logs de pruebas.
 - Actualizacion de planes si hay cambios de alcance.
-

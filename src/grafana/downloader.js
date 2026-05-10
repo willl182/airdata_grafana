@@ -37,6 +37,36 @@ async function runDownload(inputConfig = loadConfig()) {
   }
 }
 
+async function runDownloadChunks(inputConfig, chunks) {
+  const config = { ...inputConfig };
+  ensureDir(path.join(config.outDir, "raw"));
+  ensureDir(path.join(config.outDir, "logs"));
+
+  if (!Array.isArray(chunks)) throw new Error("chunks debe ser un arreglo");
+
+  const browser = await chromium.launch({ headless: config.headless });
+  const contextOptions = {};
+  if (config.authStateFile) contextOptions.storageState = config.authStateFile;
+  const context = await browser.newContext(contextOptions);
+
+  try {
+    for (const chunk of chunks) {
+      const from = toDate(chunk.from || chunk.startDate, "chunk.from");
+      const to = toDate(chunk.to || chunk.endDate, "chunk.to");
+      await downloadChunkWithFallback(
+        context,
+        config,
+        from,
+        to,
+        chunk.daysPerChunk || config.daysPerChunk
+      );
+      if (config.requestPauseMs > 0) await sleep(config.requestPauseMs);
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
 async function downloadRange(context, config, start, end, daysPerChunk) {
   let chunkStart = new Date(start);
   while (chunkStart < end) {
@@ -221,6 +251,7 @@ module.exports = {
   captureChunk,
   downloadChunkWithFallback,
   downloadRange,
+  runDownloadChunks,
   runDownload,
   safePostData,
 };

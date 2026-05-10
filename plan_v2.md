@@ -8,7 +8,7 @@
 
 ## Objetivo
 
-Convertir el descargador actual de Grafana en una aplicacion web que pueda correr en la nube, recibir rangos de fechas desde una interfaz, descargar datos por ventanas pequenas y dejar los resultados disponibles como JSON crudo, CSV y ZIP.
+Convertir el descargador actual de Grafana en una aplicacion web que pueda correr en la nube, recibir rangos de fechas desde una interfaz, descargar datos por ventanas pequenas y dejar los resultados disponibles principalmente como CSV largo, con CSV ancho opcional y JSON/ZIP como artifacts tecnicos.
 
 La V2 no reemplaza de inmediato los scripts actuales. Primero debe envolverlos y estabilizarlos como motor de descarga reutilizable. Luego se agrega una interfaz web, manejo de trabajos, persistencia y despliegue en Docker.
 
@@ -76,7 +76,9 @@ Worker
   - guarda JSON crudo
   - convierte a CSV
   - reintenta ventanas
-  - genera ZIP final
+  - genera CSV largo final
+  - genera CSV ancho opcional
+  - puede generar ZIP tecnico opcional
   |
   v
 Almacenamiento
@@ -107,8 +109,9 @@ Almacenamiento
 8. La webapp muestra avance por ventanas.
 9. Al terminar, permite descargar:
    - JSON crudo
-   - CSV
-   - ZIP completo
+   - CSV largo principal
+   - CSV ancho opcional
+   - ZIP tecnico opcional
    - manifest/logs
 
 ## Agregado vs sensor individual
@@ -174,7 +177,7 @@ time,sensor,value,unit,chunk_from,chunk_to,ref_id,frame_index,source_file
 time,Tangara_14D6,Tangara_2FF6,CanAirIO_06BE,...
 ```
 
-El formato `long` es mejor como formato canonico porque evita perder informacion y escala mejor cuando hay muchos sensores. El formato `wide` es util para Excel y comparaciones rapidas.
+El formato `long` es el formato principal porque evita perder informacion, escala mejor cuando hay muchos sensores y es mas facil de procesar en R. El formato `wide` queda como salida opcional para Excel y comparaciones rapidas.
 
 ## Modelo de datos minimo
 
@@ -252,7 +255,9 @@ Payload inicial para crear job:
   "timezone": "America/Bogota",
   "chunkSize": "1d",
   "mode": "both",
-  "outputFormats": ["json", "csv_long", "csv_wide", "zip"]
+  "maxRangeDays": 10,
+  "outputFormats": ["csv_long", "csv_wide"],
+  "technicalArtifacts": ["json", "zip"]
 }
 ```
 
@@ -310,9 +315,9 @@ Esto evita duplicados cuando existen ventanas traslapadas o pruebas previas.
 
 El conversor debe generar:
 
-- CSV largo canonico.
+- CSV largo canonico y principal.
 - CSV ancho opcional.
-- CSV por sensor opcional.
+- CSV por sensor opcional solo si el schema lo exige.
 
 ## Estrategia de ventanas
 
@@ -369,7 +374,7 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 - No guardar cookies en git.
 - Proteger la webapp con login simple o reverse proxy con basic auth.
 - Limitar jobs concurrentes.
-- Limitar rango maximo por job o advertir cuando sea muy grande.
+- Limitar rango maximo inicial a 10 dias por job.
 - Guardar logs sin credenciales sensibles.
 
 ## Fases de implementacion
@@ -380,7 +385,7 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 - Modularizar el codigo actual en funciones reutilizables.
 - Mantener los comandos `pnpm run explore`, `pnpm run download` y `pnpm run csv`.
 - Agregar soporte para parametros por job.
-- Agregar salida `csv_long` y `csv_wide`.
+- Agregar salida `csv_long` principal y `csv_wide` opcional.
 
 ### Fase 2: jobs locales
 
@@ -388,7 +393,7 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 - Crear chunks por rango de fechas.
 - Registrar progreso por chunk.
 - Reanudar jobs incompletos.
-- Generar ZIP final.
+- Generar ZIP tecnico opcional.
 
 ### Fase 3: webapp
 
@@ -457,8 +462,8 @@ El siguiente paso de implementacion debe ser pequeno:
 
 1. Crear modelo de `job` y `chunk` en archivos locales.
 2. Adaptar el descargador actual para ejecutar un job definido por JSON.
-3. Generar `csv_long` y `csv_wide`.
-4. Probar con un rango de 7 dias.
+3. Generar `csv_long` principal y `csv_wide` opcional.
+4. Probar con un rango de hasta 10 dias.
 5. Solo despues crear la UI.
 
 Esto reduce riesgo: primero se estabiliza el motor por trabajos, luego se pone la webapp encima.
@@ -563,9 +568,9 @@ Objetivo: convertir los scripts actuales en un motor reutilizable por CLI, API y
 
 ### Lo hace el usuario
 
-- Validar si las columnas del CSV resultante sirven para su analisis.
+- Validar si las columnas del CSV largo resultante sirven para su analisis en R.
 - Comparar una muestra contra el CSV manual de Grafana Inspect.
-- Decidir si el formato principal sera `long`, `wide` o ambos.
+- Confirmar `csv_long` como formato principal y `csv_wide` como opcional.
 
 ### Automatizable
 
@@ -574,7 +579,7 @@ Objetivo: convertir los scripts actuales en un motor reutilizable por CLI, API y
 - Ejecucion de descarga corta.
 - Ejecucion de descarga de 7 dias.
 - Generacion de CSVs.
-- Generacion de ZIP.
+- Generacion opcional de ZIP tecnico.
 
 ### Entregable
 
@@ -603,11 +608,11 @@ Objetivo: que una descarga larga pueda pausarse, fallar, reintentarse y continua
 - Disenar mensajes de log.
 - Disenar estados visibles para la UI.
 - Disenar estrategia de deduplicacion.
-- Preparar pruebas con rangos grandes.
+- Preparar pruebas con rangos de maximo 10 dias en la primera version.
 
 ### Lo hace el usuario
 
-- Definir rangos historicos objetivo.
+- Definir si mas adelante se amplia el limite de 10 dias.
 - Definir tamano inicial de ventana para produccion, por ejemplo 1 dia o 6 horas.
 - Definir si una ventana fallida debe detener todo el job o solo quedar marcada como fallida.
 
@@ -663,7 +668,8 @@ Objetivo: crear una interfaz para lanzar y monitorear descargas.
 - Paginas basicas.
 - Validacion de campos.
 - Polling de estado.
-- Descarga de ZIP.
+- Descarga de CSV largo y CSV ancho opcional.
+- Descarga de ZIP tecnico opcional.
 
 ### Entregable
 

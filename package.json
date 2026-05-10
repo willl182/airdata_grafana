@@ -7,6 +7,7 @@
   "scripts": {
     "explore": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node scripts/explorar-grafana.js",
     "download": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node scripts/descargar-grafana.js",
+    "download:job": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node scripts/descargar-job.js",
     "csv": "node scripts/grafana-json-a-csv.js",
     "install:browsers": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright playwright install chromium"
   },

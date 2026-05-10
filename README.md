@@ -46,6 +46,13 @@ Descargar JSON crudo por ventanas:
 pnpm run download
 ```
 
+Ejecutar un job con chunks reanudables:
+
+```bash
+pnpm run download:job -- examples/job.example.json
+pnpm run download:job -- examples/job.7d.example.json
+```
+
 Convertir los JSON descargados a CSV:
 
 ```bash
@@ -60,7 +67,7 @@ const { loadConfig, runDownload } = require("./src/grafana");
 runDownload(loadConfig());
 ```
 
-Hay un ejemplo inicial de job en `examples/job.example.json`. La fase actual conserva `daysPerChunk` para compatibilidad; `chunkSize` queda documentado en el ejemplo para el motor por jobs de la siguiente fase.
+Hay un ejemplo inicial de job en `examples/job.example.json`. El motor de jobs usa `startDate`, `endDate` y `chunkSize` para generar `data/jobs/<jobId>/chunks.jsonl`. Si el JSON crudo de un chunk ya existe, la siguiente ejecucion lo salta y registra el skip en `manifest.jsonl`.
 
 ## Salidas
 
@@ -68,6 +75,10 @@ Hay un ejemplo inicial de job en `examples/job.example.json`. La fase actual con
 data/discovery/requests.json
 data/raw/*.json
 data/manifest.jsonl
+data/jobs/<jobId>/job.json
+data/jobs/<jobId>/chunks.jsonl
+data/jobs/<jobId>/raw/*.json
+data/jobs/<jobId>/manifest.jsonl
 data/csv/*.csv
 ```
 

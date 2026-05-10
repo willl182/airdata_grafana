@@ -2,7 +2,7 @@
 
 ## Proposito de esta etapa
 
-Construir una V2 del descargador de Grafana que pueda correr en un VPS con Docker, recibir rangos de fechas desde una webapp, descargar por ventanas pequenas, reanudar trabajos incompletos y entregar resultados como JSON crudo, CSV y ZIP.
+Construir una V2 del descargador de Grafana que pueda correr en un VPS con Docker, recibir rangos de fechas desde una webapp, descargar por ventanas pequenas, reanudar trabajos incompletos y entregar resultados principalmente como CSV largo, con CSV ancho opcional y artifacts tecnicos internos.
 
 Esta etapa no busca construir una plataforma compleja. Busca pasar de scripts locales funcionales a una herramienta operable en nube, con estado, progreso y resultados descargables.
 
@@ -13,7 +13,10 @@ Al cierre de esta etapa debe existir:
 - Motor de descarga por jobs.
 - Division automatica por ventanas temporales.
 - Reanudacion de jobs incompletos.
-- Exportacion JSON crudo, CSV largo, CSV ancho y ZIP.
+- Exportacion principal en CSV largo.
+- Exportacion secundaria en CSV ancho opcional.
+- JSON crudo guardado internamente por chunk.
+- ZIP tecnico opcional para respaldo/debug.
 - Webapp local para crear y monitorear jobs.
 - Dockerfile y `docker-compose.yml`.
 - Despliegue funcional en el VPS.
@@ -39,7 +42,7 @@ data/jobs/<jobId>/
   csv/
   manifest.jsonl
   logs.txt
-  result.zip
+  result.zip opcional
 ```
 
 ## Decision de infraestructura
@@ -69,8 +72,9 @@ Posibles usos posteriores:
 - Todo job debe poder reanudarse.
 - Nunca depender de una unica consulta grande.
 - Guardar siempre JSON crudo.
-- Generar CSV largo como formato canonico.
+- Generar CSV largo como formato canonico y principal para analisis en R.
 - Generar CSV ancho como salida conveniente para Excel.
+- En la primera version, limitar jobs a maximo 10 dias y chunks de 1 dia.
 - Mantener Docker simple antes de agregar servicios externos.
 
 ## Camino critico
@@ -78,7 +82,7 @@ Posibles usos posteriores:
 ```txt
 1. Motor por job
 2. Chunks reanudables
-3. CSV long/wide y ZIP
+3. CSV largo principal y CSV ancho opcional
 4. Webapp local
 5. Docker local
 6. VPS
@@ -140,6 +144,7 @@ Salidas:
 - logs por job
 - reintentos
 - reanudacion
+- limite inicial de 10 dias por job
 
 Bloquea:
 
@@ -156,6 +161,8 @@ Salidas:
 - lista de jobs
 - detalle de progreso
 - descarga de artifacts
+- descarga directa del CSV largo final
+- descarga opcional del CSV ancho final
 - vista de logs
 
 Bloquea:
@@ -227,4 +234,3 @@ Salidas posibles:
 - `plan_v2.md`: referencia tecnica extensa.
 - `subplan_agente_v2.md`: tareas ejecutables por agente.
 - `subplan_usuario_v2.md`: tareas que debe hacer o decidir el usuario.
-
