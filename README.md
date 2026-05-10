@@ -2,6 +2,15 @@
 
 Herramientas Node.js para explorar y descargar datos exportables de paneles de Grafana por ventanas temporales.
 
+## Estructura
+
+```txt
+src/grafana/              modulos reutilizables de la V2
+scripts/                  wrappers CLI compatibles
+examples/job.example.json ejemplo inicial de job
+data/                     salidas locales ignoradas por git
+```
+
 ## Instalacion
 
 ```bash
@@ -42,6 +51,16 @@ Convertir los JSON descargados a CSV:
 ```bash
 pnpm run csv
 ```
+
+Los comandos anteriores siguen usando `config.local.json` por defecto. La logica tambien puede invocarse desde codigo:
+
+```js
+const { loadConfig, runDownload } = require("./src/grafana");
+
+runDownload(loadConfig());
+```
+
+Hay un ejemplo inicial de job en `examples/job.example.json`. La fase actual conserva `daysPerChunk` para compatibilidad; `chunkSize` queda documentado en el ejemplo para el motor por jobs de la siguiente fase.
 
 ## Salidas
 
