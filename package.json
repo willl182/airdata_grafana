@@ -1,0 +1,16 @@
+{
+  "name": "airdata_grafana",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Descarga datos exportables de paneles de Grafana por ventanas temporales.",
+  "type": "commonjs",
+  "scripts": {
+    "explore": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node scripts/explorar-grafana.js",
+    "download": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node scripts/descargar-grafana.js",
+    "csv": "node scripts/grafana-json-a-csv.js",
+    "install:browsers": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.53.0"
+  }
+}

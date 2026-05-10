@@ -1,0 +1,7 @@
+node_modules/
+.pnpm-store/
+.ms-playwright/
+data/
+.auth/
+config.local.json
+*.log

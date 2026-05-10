@@ -1,0 +1,19 @@
+{
+  "dashboardUrl": "https://grafana.canair.io/d/UN_OsIo7k/tangara?orgId=1&from=now-1h&to=now&timezone=browser",
+  "panelTitle": "PM2.5 Sensores Cali",
+  "panelId": null,
+  "startDate": "2026-01-01T00:00:00-05:00",
+  "endDate": "2026-01-02T00:00:00-05:00",
+  "timezone": "America/Bogota",
+  "daysPerChunk": 1,
+  "minDaysPerChunk": 1,
+  "outDir": "data",
+  "requestPauseMs": 3000,
+  "maxRetries": 2,
+  "headless": true,
+  "authStateFile": null,
+  "navigationTimeoutMs": 90000,
+  "quietPeriodMs": 8000,
+  "postLoadWaitMs": 3000,
+  "maxDataPoints": 2000
+}
