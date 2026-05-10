@@ -104,7 +104,7 @@ Con ejecucion local, levanta la API y la web por separado:
 ```bash
 pnpm run api
 cd webapp
-npm run dev
+pnpm run dev
 ```
 
 ### CLI

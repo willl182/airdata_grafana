@@ -4,16 +4,14 @@ WORKDIR /app
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY webapp/package.json ./webapp/
 RUN pnpm install --frozen-lockfile
-
-COPY webapp/package.json webapp/package-lock.json ./webapp/
-RUN cd webapp && npm ci
 
 COPY . .
 
 RUN pnpm run build
-RUN cd webapp && SKIP_ENV_VALIDATION=1 npm run build
+RUN cd webapp && SKIP_ENV_VALIDATION=1 pnpm run build
 
 FROM mcr.microsoft.com/playwright:v1.59.1-noble
 
@@ -28,11 +26,9 @@ ENV PORT=3000
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY webapp/package.json ./webapp/
 RUN pnpm install --frozen-lockfile --prod
-
-COPY webapp/package.json webapp/package-lock.json ./webapp/
-RUN cd webapp && npm ci --omit=dev
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/webapp/.next ./webapp/.next

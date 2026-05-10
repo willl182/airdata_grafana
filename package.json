@@ -4,6 +4,7 @@
   "private": true,
   "description": "Descarga datos exportables de paneles de Grafana por ventanas temporales.",
   "type": "commonjs",
+  "packageManager": "pnpm@10.33.2",
   "scripts": {
     "build": "tsc",
     "explore": "pnpm run build && PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node dist/scripts/explorar-grafana.js",
