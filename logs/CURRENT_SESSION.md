@@ -1,60 +1,50 @@
-# Session State: Grafana Downloader V2
+# Session State: airdata_grafana
 
-**Last Updated**: 2026-05-09 19:56 -0500
+**Last Updated**: 2026-05-09 20:23 -0500
 
 ## Session Objective
 
-Plan and evolve the current Grafana downloader into a V2 cloud/webapp version that can run on a VPS with Docker, download large date ranges in small resumable windows, and expose a browser UI for configuring jobs and downloading outputs.
+Evolve the existing Grafana downloader into V2. Current milestone completed: Phase A1 from `subplan_agente_v2.md`, preparing the technical base with reusable modules while preserving the existing CLI scripts.
 
 ## Current State
 
-- [x] Reviewed original `guia.md` approach with a subagent.
-- [x] Confirmed real dashboard URL uses normal Grafana `/d/...` route, not public dashboard token route.
-- [x] Observed real data endpoint pattern: `POST /api/ds/query?ds_type=influxdb`.
-- [x] Implemented first CLI downloader using Playwright capture.
-- [x] Switched project workflow to `pnpm`.
-- [x] Installed Playwright Chromium locally under `.ms-playwright/`.
-- [x] Downloaded last 7 days from `2026-05-02T19:26:00-05:00` to `2026-05-09T19:26:00-05:00`.
-- [x] Generated raw JSON and CSV outputs for the 7-day run.
-- [x] Created `plan_v2.md` as technical reference for cloud/webapp V2.
-- [x] Reorganized execution planning into:
-  - `plan_maestro_v2.md`
-  - `subplan_agente_v2.md`
-  - `subplan_usuario_v2.md`
-- [ ] Validate generated CSV against a manual Grafana Inspect CSV.
-- [ ] Decide whether to remove or isolate the earlier 1-hour test raw JSON to avoid duplicate CSV rows.
-- [ ] Begin V2 implementation with job-based engine refactor.
+- [x] Created local Git repository and published private GitHub repo: `https://github.com/willl182/airdata_grafana`.
+- [x] Initial commit: `6e9714f Initial airdata_grafana project`.
+- [x] Completed Phase A1 refactor commit: `08c8fff Refactor Grafana scripts into reusable modules`.
+- [x] Added `src/grafana/` reusable CommonJS modules:
+  - `common.js`
+  - `downloader.js`
+  - `explorer.js`
+  - `csv.js`
+  - `index.js`
+- [x] Preserved CLI compatibility through wrappers in `scripts/`.
+- [x] Added `examples/job.example.json`.
+- [x] Updated `README.md` with V2 module structure and programmatic usage.
+- [x] Pushed A1 changes to `origin/main`.
+- [ ] `subplan_usuario_v2.md` has user edits not committed by the agent.
+- [ ] Phase A2 remains pending: job reader, chunk generation from `startDate`/`endDate`/`chunkSize`, resumable chunk execution, per-chunk manifest.
 
 ## Critical Technical Context
 
 - Working directory: `/home/w182/w421/grafana`.
-- Current project is Node.js CommonJS with `pnpm`.
-- Existing scripts:
-  - `scripts/explorar-grafana.js`
-  - `scripts/descargar-grafana.js`
-  - `scripts/grafana-json-a-csv.js`
-  - `scripts/grafana-common.js`
-- Current config file: `config.local.json` is ignored by git.
-- Outputs are under `data/`, also ignored by git.
-- The endpoint captured from Grafana is browser-driven and not a documented public export API.
-- Grafana Inspect offers multiple data frame views:
-  - `Series joined by time`
-  - individual sensor frames such as `Tangara_14D6`, `Tangara_2FF6`, etc.
-- V2 recommendation: keep JSON raw, produce canonical CSV long, and optionally CSV wide.
-- Cloud recommendation: Hostinger VPS + Docker Compose. Vercel/Supabase/Convex are optional later, not core for the initial worker.
-- Playwright/Chromium may require running outside assistant sandbox or inside a proper Docker image with browser dependencies.
-
-## Plan Documents
-
-- `plan_v2.md`: extended technical reference.
-- `plan_maestro_v2.md`: master plan for the current V2 stage.
-- `subplan_agente_v2.md`: agent-executable implementation plan.
-- `subplan_usuario_v2.md`: user responsibilities, decisions, access prep, and validation checklist.
+- Git remote: `origin https://github.com/willl182/airdata_grafana.git`.
+- Branch: `main`, currently at `08c8fff` on `origin/main`.
+- Project is Node.js CommonJS and uses `pnpm`.
+- Existing commands must remain valid:
+  - `pnpm run explore`
+  - `pnpm run download`
+  - `pnpm run csv`
+- `config.local.json`, `data/`, `.ms-playwright/`, `.pnpm-store/`, and `node_modules/` are ignored by git.
+- Playwright CLI scripts rely on `PLAYWRIGHT_BROWSERS_PATH=.ms-playwright` from `package.json` scripts.
+- A direct `node -e "require('./scripts/descargar-grafana.js')"` will launch Playwright without that env var and may fail looking under `~/.cache/ms-playwright`; use `pnpm run download` or call `runDownload(config)` with the right environment.
+- `pnpm run csv` was verified successfully against local `data/raw` outputs.
+- Syntax checks passed for all scripts and `src/grafana/*.js`.
+- Do not overwrite or commit `subplan_usuario_v2.md` without user intent; it contains user-filled deployment/data policy decisions.
 
 ## Next Steps
 
-1. User completes the checklist in `subplan_usuario_v2.md`: VPS access, Docker Compose status, domain/port, privacy, and sample CSV validation.
-2. Agent starts `subplan_agente_v2.md` Phase A1: refactor current scripts into a reusable job-based engine.
-3. Implement resumable chunks and job artifacts before building the web UI.
-4. After local job flow works, implement webapp and Docker packaging.
-
+1. Commit or intentionally leave user edits in `subplan_usuario_v2.md` based on user preference.
+2. Start Phase A2 in `subplan_agente_v2.md`.
+3. Implement job loading from `examples/job.example.json`-style files.
+4. Generate chunks from `startDate`, `endDate`, and `chunkSize`.
+5. Execute/download per chunk with resumability and per-chunk manifest records.
