@@ -1,0 +1,13 @@
+node_modules
+webapp/node_modules
+dist
+webapp/.next
+.pnpm-store
+.ms-playwright
+data
+.auth
+logs
+*.log
+.git
+.env
+webapp/.env

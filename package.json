@@ -10,6 +10,7 @@
     "download": "pnpm run build && PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node dist/scripts/descargar-grafana.js",
     "download:job": "pnpm run build && PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node dist/scripts/descargar-job.js",
     "csv": "pnpm run build && node dist/scripts/grafana-json-a-csv.js",
+    "api": "pnpm run build && PLAYWRIGHT_BROWSERS_PATH=.ms-playwright node dist/scripts/api.js",
     "install:browsers": "PLAYWRIGHT_BROWSERS_PATH=.ms-playwright playwright install chromium",
     "typecheck": "tsc --noEmit"
   },

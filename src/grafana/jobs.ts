@@ -53,7 +53,7 @@ function loadJob(jobPath = process.env.JOB || "examples/job.example.json"): Norm
 function normalizeJob(rawJob: Job, jobPath: string | null = null): NormalizedJob {
   const merged = applyEnvConfig({ ...DEFAULT_CONFIG, ...rawJob });
   const id = merged.id || buildJobId(merged);
-  const outDir = merged.outDir || path.join("data", "jobs", id);
+  const outDir = rawJob.outDir || process.env.OUT_DIR || path.join("data", "jobs", id);
 
   return {
     ...merged,
@@ -152,7 +152,8 @@ function writeJobFiles(job: NormalizedJob, chunks: JobChunk[]): void {
 }
 
 async function runJob(
-  input: string | Job = process.env.JOB || "examples/job.example.json"
+  input: string | Job = process.env.JOB || "examples/job.example.json",
+  options: { signal?: AbortSignal } = {}
 ): Promise<{ job: NormalizedJob; chunks: JobChunk[] }> {
   const job = typeof input === "string" ? loadJob(input) : normalizeJob(input);
   const chunks = generateChunks(job);
@@ -180,7 +181,7 @@ async function runJob(
     return { job, chunks };
   }
 
-  await runDownloadChunks(job, pendingChunks);
+  await runDownloadChunks(job, pendingChunks, options);
   buildJobOutputs(job);
   return { job, chunks };
 }

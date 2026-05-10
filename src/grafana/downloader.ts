@@ -39,8 +39,13 @@ async function runDownload(inputConfig = loadConfig()) {
   }
 }
 
-async function runDownloadChunks(inputConfig, chunks) {
+interface DownloadOptions {
+  signal?: AbortSignal;
+}
+
+async function runDownloadChunks(inputConfig, chunks, options: DownloadOptions = {}) {
   const config = { ...inputConfig };
+  const signal = options.signal;
   ensureDir(path.join(config.outDir, "raw"));
   ensureDir(path.join(config.outDir, "logs"));
 
@@ -53,6 +58,7 @@ async function runDownloadChunks(inputConfig, chunks) {
 
   try {
     for (const chunk of chunks) {
+      throwIfAborted(signal);
       const from = toDate(chunk.from || chunk.startDate, "chunk.from");
       const to = toDate(chunk.to || chunk.endDate, "chunk.to");
       await downloadChunkWithFallback(
@@ -60,8 +66,10 @@ async function runDownloadChunks(inputConfig, chunks) {
         config,
         from,
         to,
-        chunk.daysPerChunk || config.daysPerChunk
+        chunk.daysPerChunk || config.daysPerChunk,
+        signal
       );
+      throwIfAborted(signal);
       if (config.requestPauseMs > 0) await sleep(config.requestPauseMs);
     }
   } finally {
@@ -80,7 +88,8 @@ async function downloadRange(context, config, start, end, daysPerChunk) {
   }
 }
 
-async function downloadChunkWithFallback(context, config, from, to, daysPerChunk) {
+async function downloadChunkWithFallback(context, config, from, to, daysPerChunk, signal = null) {
+  throwIfAborted(signal);
   const outputFile = makeChunkFile(config, from, to);
   const manifestFile = path.join(config.outDir, "manifest.jsonl");
 
@@ -98,8 +107,9 @@ async function downloadChunkWithFallback(context, config, from, to, daysPerChunk
 
   let lastError = null;
   for (let attempt = 1; attempt <= config.maxRetries + 1; attempt += 1) {
+    throwIfAborted(signal);
     try {
-      const result = await captureChunk(context, config, from, to, attempt);
+      const result = await captureChunk(context, config, from, to, attempt, signal);
       fs.writeFileSync(outputFile, JSON.stringify(result, null, 2));
       appendManifest(manifestFile, config, from, to, "ok", attempt, outputFile, result);
       console.log(`Guardado: ${outputFile}`);
@@ -118,8 +128,8 @@ async function downloadChunkWithFallback(context, config, from, to, daysPerChunk
   if (daysPerChunk > config.minDaysPerChunk) {
     const mid = new Date((from.getTime() + to.getTime()) / 2);
     console.log(`Dividiendo ventana: ${from.toISOString()} - ${to.toISOString()}`);
-    await downloadChunkWithFallback(context, config, from, mid, daysPerChunk / 2);
-    await downloadChunkWithFallback(context, config, mid, to, daysPerChunk / 2);
+    await downloadChunkWithFallback(context, config, from, mid, daysPerChunk / 2, signal);
+    await downloadChunkWithFallback(context, config, mid, to, daysPerChunk / 2, signal);
     return;
   }
 
@@ -136,7 +146,8 @@ async function downloadChunkWithFallback(context, config, from, to, daysPerChunk
   });
 }
 
-async function captureChunk(context, config, from, to, attempt) {
+async function captureChunk(context, config, from, to, attempt, signal = null) {
+  throwIfAborted(signal);
   const url = buildDashboardUrl(config.dashboardUrl, from, to, config.timezone);
   const page = await context.newPage();
   const responses: CapturedResponse[] = [];
@@ -186,9 +197,11 @@ async function captureChunk(context, config, from, to, attempt) {
       waitUntil: "domcontentloaded",
       timeout: config.navigationTimeoutMs,
     });
+    throwIfAborted(signal);
     await page.waitForTimeout(config.postLoadWaitMs);
 
     while (Date.now() - lastDataAt < config.quietPeriodMs) {
+      throwIfAborted(signal);
       await page.waitForTimeout(500);
     }
   } finally {
@@ -246,6 +259,13 @@ function appendManifest(file, config, from, to, status, attempts, outputFile, re
     error_message: "",
     finished_at: new Date().toISOString(),
   });
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  const error = new Error("Job cancelado por el usuario.");
+  error.name = "AbortError";
+  throw error;
 }
 
 module.exports = {
