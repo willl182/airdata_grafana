@@ -12,6 +12,8 @@ Convertir el descargador actual de Grafana en una aplicacion web que pueda corre
 
 La V2 no reemplaza de inmediato los scripts actuales. Primero debe envolverlos y estabilizarlos como motor de descarga reutilizable. Luego se agrega una interfaz web, manejo de trabajos, persistencia y despliegue en Docker.
 
+Actualizacion: el motor local ya fue migrado a TypeScript manteniendo CommonJS, wrappers CLI y comandos publicos. El desarrollo nuevo del nucleo, API y worker debe continuar en TypeScript.
+
 ## Decision recomendada de infraestructura
 
 La opcion recomendada para esta V2 es montarla en el VPS de Hostinger con Docker.
@@ -269,13 +271,13 @@ Crear una libreria interna:
 
 ```txt
 src/grafana/
-  config.js
-  discover.js
-  download-job.js
-  download-chunk.js
-  parse-frames.js
-  write-csv.js
-  zip-artifacts.js
+  common.ts
+  explorer.ts
+  downloader.ts
+  jobs.ts
+  csv.ts
+  types.ts
+  index.ts
 ```
 
 Los scripts actuales quedarian como CLI del mismo motor:
@@ -283,8 +285,11 @@ Los scripts actuales quedarian como CLI del mismo motor:
 ```txt
 scripts/explorar-grafana.js
 scripts/descargar-grafana.js
+scripts/descargar-job.js
 scripts/grafana-json-a-csv.js
 ```
+
+Los scripts CLI se mantienen en JavaScript como wrappers y ejecutan el codigo compilado desde `dist/` despues de `pnpm run build`.
 
 ### 2. Parametros por job
 
@@ -379,13 +384,15 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 
 ## Fases de implementacion
 
-### Fase 1: base V2 local
+### Fase 1: base V2 local TypeScript
 
 - Crear `plan_v2.md`.
 - Modularizar el codigo actual en funciones reutilizables.
 - Mantener los comandos `pnpm run explore`, `pnpm run download` y `pnpm run csv`.
 - Agregar soporte para parametros por job.
-- Agregar salida `csv_long` principal y `csv_wide` opcional.
+- Migrar `src/grafana/` a TypeScript.
+- Agregar tipos compartidos.
+- Validar con `pnpm run typecheck` y `pnpm run build`.
 
 ### Fase 2: jobs locales
 
@@ -393,9 +400,25 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 - Crear chunks por rango de fechas.
 - Registrar progreso por chunk.
 - Reanudar jobs incompletos.
+- Saltar chunks existentes.
+
+### Fase 3: outputs finales
+
+- Generar CSV largo final por job como salida principal.
+- Generar CSV ancho final opcional.
+- Agregar dedupe inicial.
+- Registrar artifacts finales.
 - Generar ZIP tecnico opcional.
 
-### Fase 3: webapp
+### Fase 4: API local
+
+- Crear `POST /api/jobs`.
+- Crear `GET /api/jobs`.
+- Crear `GET /api/jobs/:id`.
+- Crear endpoints de logs y artifacts.
+- Crear descarga directa de CSV largo y CSV ancho opcional.
+
+### Fase 5: webapp
 
 - Crear formulario de nuevo job.
 - Crear listado de jobs.
@@ -403,14 +426,14 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 - Crear descarga de artifacts.
 - Mostrar logs basicos.
 
-### Fase 4: Docker local
+### Fase 6: Docker local
 
 - Crear Dockerfile con Playwright.
 - Crear `docker-compose.yml`.
 - Montar volumen `data/`.
 - Probar descarga desde contenedor.
 
-### Fase 5: despliegue en VPS
+### Fase 7: despliegue en VPS
 
 - Subir repo al VPS.
 - Levantar contenedores.
@@ -420,7 +443,7 @@ Como la app permite ejecutar descargas desde URLs externas, debe tener controles
 - Probar job de 7 dias.
 - Probar job largo.
 
-### Fase 6: robustez
+### Fase 8: robustez
 
 - Cancelar jobs.
 - Reintentar chunks fallidos desde UI.
@@ -478,7 +501,7 @@ Esta seccion separa el trabajo entre tareas en serie, tareas paralelas, tareas a
 Fase 0: decisiones y accesos
   |
   v
-Fase 1: motor V2 local
+Fase 1: motor V2 local TypeScript
   |
   v
 Fase 2: jobs reanudables
@@ -487,25 +510,31 @@ Fase 2: jobs reanudables
   +---- paralelo: preparacion VPS
   |
   v
-Fase 3: webapp local
+Fase 3: outputs finales de job
   |
   v
-Fase 4: Docker local
+Fase 4: API local
   |
   v
-Fase 5: despliegue VPS
+Fase 5: webapp local
   |
   v
-Fase 6: endurecimiento y mejoras
+Fase 6: Docker local
+  |
+  v
+Fase 7: despliegue VPS
+  |
+  v
+Fase 8: endurecimiento y mejoras
 ```
 
 El camino critico es:
 
 ```txt
-motor reusable -> jobs reanudables -> webapp -> Docker -> VPS
+motor TypeScript reusable -> jobs reanudables -> outputs finales -> API -> webapp -> Docker -> VPS
 ```
 
-Sin motor reusable no conviene construir la webapp. Sin jobs reanudables no conviene correr descargas grandes en la nube.
+Sin motor reusable no conviene construir la webapp. Sin jobs reanudables y outputs finales no conviene correr descargas grandes en la nube.
 
 ## Fase 0: decisiones y accesos
 
@@ -546,7 +575,7 @@ docs/v2_decisiones.md
 .env.example
 ```
 
-## Fase 1: motor V2 local
+## Fase 1: motor V2 local TypeScript
 
 Objetivo: convertir los scripts actuales en un motor reutilizable por CLI, API y worker.
 
@@ -554,8 +583,11 @@ Objetivo: convertir los scripts actuales en un motor reutilizable por CLI, API y
 
 - Extraer funciones comunes del script actual.
 - Crear estructura `src/grafana/`.
+- Migrar el nucleo a TypeScript.
+- Crear `src/grafana/types.ts`.
 - Hacer que una descarga acepte un objeto `job`.
 - Mantener compatibilidad con los comandos actuales.
+- Compilar a `dist/`.
 - Probar una descarga de 1 hora.
 - Probar una descarga de 7 dias.
 
@@ -575,6 +607,9 @@ Objetivo: convertir los scripts actuales en un motor reutilizable por CLI, API y
 ### Automatizable
 
 - Refactor de codigo.
+- Migracion TypeScript.
+- Typecheck.
+- Build.
 - Pruebas de sintaxis.
 - Ejecucion de descarga corta.
 - Ejecucion de descarga de 7 dias.
@@ -584,10 +619,12 @@ Objetivo: convertir los scripts actuales en un motor reutilizable por CLI, API y
 ### Entregable
 
 ```txt
-src/grafana/*.js
+src/grafana/*.ts
 examples/job.pm25-cali.7d.json
 data/jobs/<jobId>/
 ```
+
+Estado: base TypeScript completada. Los wrappers CLI permanecen en `scripts/*.js`.
 
 ## Fase 2: jobs reanudables
 
@@ -634,7 +671,76 @@ data/jobs/<jobId>/manifest.jsonl
 data/jobs/<jobId>/logs.txt
 ```
 
-## Fase 3: webapp local
+Estado: base local implementada. Falta cerrar el job con outputs finales A3.
+
+## Fase 3: outputs finales de job
+
+Objetivo: producir un resultado final util por job a partir de los JSON crudos por chunk.
+
+### En serie
+
+- Leer todos los JSON crudos del job.
+- Normalizar DataFrames de Grafana a filas largas.
+- Aplicar dedupe inicial para traslapes.
+- Escribir un CSV largo final.
+- Escribir un CSV ancho final opcional.
+- Registrar artifacts finales.
+- Mantener JSON crudo como artifact interno.
+- Generar ZIP tecnico opcional.
+
+### Puede ir en paralelo
+
+- Validar nombres de columnas con el usuario.
+- Definir si la salida wide se genera siempre o por opcion.
+- Definir clave exacta de dedupe.
+
+### Lo hace el usuario
+
+- Validar el CSV largo final en R.
+- Validar si el CSV ancho opcional sirve para revision rapida.
+- Confirmar si dedupe conserva las mediciones esperadas.
+
+### Automatizable
+
+- Conversor TypeScript.
+- Dedupe.
+- Escritura de artifacts.
+- Pruebas con jobs de ejemplo.
+
+### Entregable
+
+```txt
+data/jobs/<jobId>/csv/<jobId>.long.csv
+data/jobs/<jobId>/csv/<jobId>.wide.csv opcional
+data/jobs/<jobId>/artifacts.json
+```
+
+## Fase 4: API local
+
+Objetivo: exponer el motor por HTTP para que la webapp sea una capa delgada.
+
+### En serie
+
+- Crear servidor local.
+- Crear endpoint para crear jobs.
+- Crear endpoints para listar y consultar jobs.
+- Crear endpoints para logs y artifacts.
+- Crear endpoint de descarga de CSV largo.
+- Crear endpoint de descarga de CSV ancho opcional.
+
+### Entregable
+
+```txt
+POST /api/jobs
+GET /api/jobs
+GET /api/jobs/:id
+GET /api/jobs/:id/logs
+GET /api/jobs/:id/artifacts
+GET /api/jobs/:id/download/csv-long
+GET /api/jobs/:id/download/csv-wide
+```
+
+## Fase 5: webapp local
 
 Objetivo: crear una interfaz para lanzar y monitorear descargas.
 
@@ -679,7 +785,7 @@ src/web/
 pnpm run dev
 ```
 
-## Fase 4: Docker local
+## Fase 6: Docker local
 
 Objetivo: empaquetar la aplicacion para que corra igual en local y en el VPS.
 
@@ -721,7 +827,7 @@ docker-compose.yml
 docs/deploy_vps.md
 ```
 
-## Fase 5: despliegue en VPS
+## Fase 7: despliegue en VPS
 
 Objetivo: dejar la aplicacion funcionando en Hostinger.
 
@@ -766,7 +872,7 @@ job de prueba completado
 data/jobs/<jobId>/result.zip
 ```
 
-## Fase 6: endurecimiento y mejoras
+## Fase 8: endurecimiento y mejoras
 
 Objetivo: convertir la V2 funcional en una herramienta confiable para datasets grandes.
 
@@ -850,12 +956,13 @@ selector de modo de exportacion
 
 ## Primer bloque de trabajo recomendado
 
-El primer bloque debe ser:
+El siguiente bloque debe ser:
 
-1. Refactorizar el motor actual para aceptar un `job.json`.
-2. Implementar chunks reanudables.
-3. Generar `csv_long`, `csv_wide` y ZIP.
-4. Probar localmente con 7 dias.
-5. En paralelo, el usuario revisa VPS, Docker Compose, dominio y acceso.
+1. Implementar A3: CSV largo final, CSV ancho opcional y dedupe.
+2. Registrar artifacts finales por job.
+3. Crear API local.
+4. Crear webapp local.
+5. Empaquetar en Docker.
+6. Desplegar en VPS por Tailscale/puerto privado.
 
-Cuando ese bloque este validado, la webapp sera una capa encima de algo que ya funciona.
+Cuando A3 este validado, la webapp sera una capa encima de un motor que ya produce el resultado final esperado.

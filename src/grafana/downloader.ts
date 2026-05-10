@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+import type { BrowserContextOptions } from "playwright";
+import type { CapturedResponse, GrafanaPayload } from "./types";
 const {
   addDays,
   appendJsonl,
@@ -26,7 +28,7 @@ async function runDownload(inputConfig = loadConfig()) {
   if (start >= end) throw new Error("startDate debe ser anterior a endDate");
 
   const browser = await chromium.launch({ headless: config.headless });
-  const contextOptions = {};
+  const contextOptions: BrowserContextOptions = {};
   if (config.authStateFile) contextOptions.storageState = config.authStateFile;
   const context = await browser.newContext(contextOptions);
 
@@ -45,7 +47,7 @@ async function runDownloadChunks(inputConfig, chunks) {
   if (!Array.isArray(chunks)) throw new Error("chunks debe ser un arreglo");
 
   const browser = await chromium.launch({ headless: config.headless });
-  const contextOptions = {};
+  const contextOptions: BrowserContextOptions = {};
   if (config.authStateFile) contextOptions.storageState = config.authStateFile;
   const context = await browser.newContext(contextOptions);
 
@@ -137,7 +139,7 @@ async function downloadChunkWithFallback(context, config, from, to, daysPerChunk
 async function captureChunk(context, config, from, to, attempt) {
   const url = buildDashboardUrl(config.dashboardUrl, from, to, config.timezone);
   const page = await context.newPage();
-  const responses = [];
+  const responses: CapturedResponse[] = [];
   const errors = [];
   let lastDataAt = Date.now();
 
@@ -145,7 +147,7 @@ async function captureChunk(context, config, from, to, attempt) {
     const request = response.request();
     if (!isLikelyDataRequest(request, response.url())) return;
 
-    const entry = {
+    const entry: CapturedResponse = {
       url: response.url(),
       method: request.method(),
       status: response.status(),
@@ -155,7 +157,7 @@ async function captureChunk(context, config, from, to, attempt) {
     };
 
     try {
-      entry.response = await response.json();
+      entry.response = (await response.json()) as GrafanaPayload;
       const counts = countFrames(entry.response);
       entry.frameCount = counts.frames;
       entry.rowCount = counts.rows;

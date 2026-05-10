@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 const fs = require("fs");
 const path = require("path");
 const {
@@ -9,7 +11,17 @@ const {
   sanitizeName,
   toDate,
 } = require("./common");
+const { buildJobOutputs } = require("./csv");
 const { runDownloadChunks } = require("./downloader");
+
+import type { ChunkSize, ChunkSizeUnit, GrafanaConfig, Job, JobChunk, NormalizedJob } from "./types";
+
+interface RawChunkSize {
+  value: unknown;
+  unit?: unknown;
+}
+
+type ChunkSizeInput = string | ChunkSize | RawChunkSize | null | undefined;
 
 const UNIT_MS = {
   millisecond: 1,
@@ -27,18 +39,18 @@ const UNIT_MS = {
   day: 24 * 60 * 60 * 1000,
   days: 24 * 60 * 60 * 1000,
   d: 24 * 60 * 60 * 1000,
-};
+} as const;
 
-function loadJob(jobPath = process.env.JOB || "examples/job.example.json") {
+function loadJob(jobPath = process.env.JOB || "examples/job.example.json"): NormalizedJob {
   if (!fs.existsSync(jobPath)) {
     throw new Error(`No existe el job: ${jobPath}`);
   }
 
-  const rawJob = JSON.parse(fs.readFileSync(jobPath, "utf8"));
+  const rawJob = JSON.parse(fs.readFileSync(jobPath, "utf8")) as Job;
   return normalizeJob(rawJob, jobPath);
 }
 
-function normalizeJob(rawJob, jobPath = null) {
+function normalizeJob(rawJob: Job, jobPath: string | null = null): NormalizedJob {
   const merged = applyEnvConfig({ ...DEFAULT_CONFIG, ...rawJob });
   const id = merged.id || buildJobId(merged);
   const outDir = merged.outDir || path.join("data", "jobs", id);
@@ -49,49 +61,57 @@ function normalizeJob(rawJob, jobPath = null) {
     outDir,
     sourceFile: jobPath,
     chunkSize: normalizeChunkSize(merged.chunkSize, merged.daysPerChunk),
+    outputWide: rawJob.outputWide === undefined ? true : Boolean(rawJob.outputWide),
   };
 }
 
-function buildJobId(job) {
+function buildJobId(job: Pick<GrafanaConfig, "panelTitle" | "panelId" | "startDate" | "endDate">): string {
   const label = sanitizeName(job.panelTitle || job.panelId || "grafana");
   const start = toDate(job.startDate, "startDate").toISOString().slice(0, 10);
   const end = toDate(job.endDate, "endDate").toISOString().slice(0, 10);
   return `${label}-${start}-${end}`;
 }
 
-function normalizeChunkSize(chunkSize, daysPerChunk = 1) {
+function normalizeChunkSize(chunkSize: ChunkSizeInput, daysPerChunk = 1): ChunkSize {
   if (typeof chunkSize === "string") return parseChunkSizeString(chunkSize);
   if (chunkSize && typeof chunkSize === "object") {
-    const value = Number(chunkSize.value);
-    const unit = String(chunkSize.unit || "").toLowerCase();
+    const rawChunkSize = chunkSize as RawChunkSize;
+    const value = Number(rawChunkSize.value);
+    const unit = String(rawChunkSize.unit || "").toLowerCase();
     if (!Number.isFinite(value) || value <= 0) {
-      throw new Error(`chunkSize.value invalido: ${chunkSize.value}`);
+      throw new Error(`chunkSize.value invalido: ${rawChunkSize.value}`);
     }
-    if (!UNIT_MS[unit]) throw new Error(`chunkSize.unit invalido: ${chunkSize.unit}`);
+    if (!isChunkSizeUnit(unit)) {
+      throw new Error(`chunkSize.unit invalido: ${rawChunkSize.unit}`);
+    }
     return { value, unit };
   }
 
   return { value: Number(daysPerChunk || 1), unit: "day" };
 }
 
-function parseChunkSizeString(value) {
+function parseChunkSizeString(value: string): ChunkSize {
   const match = String(value).trim().match(/^(\d+(?:\.\d+)?)\s*([a-zA-Z]+)$/);
   if (!match) throw new Error(`chunkSize invalido: ${value}`);
   return normalizeChunkSize({ value: Number(match[1]), unit: match[2] });
 }
 
-function chunkSizeToMs(chunkSize) {
+function isChunkSizeUnit(unit: string): unit is ChunkSizeUnit {
+  return Object.prototype.hasOwnProperty.call(UNIT_MS, unit);
+}
+
+function chunkSizeToMs(chunkSize: ChunkSizeInput): number {
   const normalized = normalizeChunkSize(chunkSize);
   return normalized.value * UNIT_MS[normalized.unit];
 }
 
-function generateChunks(job) {
+function generateChunks(job: NormalizedJob): JobChunk[] {
   const start = toDate(job.startDate, "startDate");
   const end = toDate(job.endDate, "endDate");
   if (start >= end) throw new Error("startDate debe ser anterior a endDate");
 
   const sizeMs = chunkSizeToMs(job.chunkSize);
-  const chunks = [];
+  const chunks: JobChunk[] = [];
   let cursor = new Date(start);
   let index = 0;
 
@@ -114,7 +134,7 @@ function generateChunks(job) {
   return chunks;
 }
 
-function writeJobFiles(job, chunks) {
+function writeJobFiles(job: NormalizedJob, chunks: JobChunk[]): void {
   ensureDir(job.outDir);
   ensureDir(path.join(job.outDir, "raw"));
   ensureDir(path.join(job.outDir, "logs"));
@@ -131,7 +151,9 @@ function writeJobFiles(job, chunks) {
   }
 }
 
-async function runJob(input = process.env.JOB || "examples/job.example.json") {
+async function runJob(
+  input: string | Job = process.env.JOB || "examples/job.example.json"
+): Promise<{ job: NormalizedJob; chunks: JobChunk[] }> {
   const job = typeof input === "string" ? loadJob(input) : normalizeJob(input);
   const chunks = generateChunks(job);
   writeJobFiles(job, chunks);
@@ -153,9 +175,13 @@ async function runJob(input = process.env.JOB || "examples/job.example.json") {
     });
   }
 
-  if (!pendingChunks.length) return { job, chunks };
+  if (!pendingChunks.length) {
+    buildJobOutputs(job);
+    return { job, chunks };
+  }
 
   await runDownloadChunks(job, pendingChunks);
+  buildJobOutputs(job);
   return { job, chunks };
 }
 

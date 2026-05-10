@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { chromium } = require("playwright");
+import type { BrowserContextOptions } from "playwright";
 const {
   buildDashboardUrl,
   countFrames,
@@ -22,7 +23,7 @@ async function runExplore(inputConfig = loadConfig()) {
   const url = buildDashboardUrl(config.dashboardUrl, start, end, config.timezone);
 
   const browser = await chromium.launch({ headless: config.headless });
-  const contextOptions = {};
+  const contextOptions: BrowserContextOptions = {};
   if (config.authStateFile) contextOptions.storageState = config.authStateFile;
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
@@ -39,7 +40,19 @@ async function runExplore(inputConfig = loadConfig()) {
       return;
     }
 
-    const record = {
+    const record: {
+      method: string;
+      url: string;
+      status: number;
+      contentType: string;
+      requestHeaders: Record<string, string>;
+      requestPostData: unknown;
+      hasFrames: boolean;
+      frameCount: number;
+      rowCount: number;
+      sampleFile: string | null;
+      readError?: string;
+    } = {
       method: request.method(),
       url: responseUrl,
       status: response.status(),

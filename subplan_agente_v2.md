@@ -4,11 +4,15 @@
 
 Ejecutar las tareas automatizables para llevar el descargador actual a una V2 operable: motor por jobs, chunks reanudables, webapp, Docker y documentacion tecnica.
 
+Estado tecnico actual: el nucleo se migro a TypeScript en `src/grafana/*.ts`, con tipos compartidos en `src/grafana/types.ts`, compilacion a `dist/` y comandos CLI preservados desde `scripts/*.js`.
+
 ## Reglas de trabajo
 
 - Mantener compatibilidad con los scripts actuales mientras se refactoriza.
 - No depender de servicios externos al inicio.
 - Usar `pnpm`.
+- Usar TypeScript para el codigo nuevo del nucleo, API y worker.
+- Ejecutar `pnpm run typecheck` y `pnpm run build` antes de cerrar cambios de codigo.
 - Guardar datos generados en `data/`.
 - Mantener secretos fuera de git.
 - Probar cada fase con un rango pequeno antes de avanzar.
@@ -24,12 +28,21 @@ Tareas:
 - Extraer helpers comunes.
 - Crear ejemplo de `job.json`.
 - Mantener `pnpm run explore`, `pnpm run download` y `pnpm run csv`.
+- Agregar TypeScript y tipos compartidos.
+- Migrar el nucleo `src/grafana/` de `.js` a `.ts`.
+- Mantener wrappers CLI estables en `scripts/*.js`.
 
 Criterios de cierre:
 
 - Los scripts actuales siguen corriendo.
 - Existe un job de ejemplo.
 - La descarga puede invocarse desde una funcion, no solo desde config global.
+- `pnpm run typecheck` pasa.
+- `pnpm run build` pasa.
+
+Estado:
+
+- Completada.
 
 ## Fase A2: motor por jobs
 
@@ -48,6 +61,11 @@ Criterios de cierre:
 - Un job de 7 dias funciona.
 - Si se ejecuta dos veces, no repite chunks completados.
 
+Estado:
+
+- Implementada la base local.
+- Pendiente conectar los outputs finales A3 como parte del cierre del job.
+
 ## Fase A3: outputs
 
 Tareas:
@@ -60,6 +78,7 @@ Tareas:
 - Agregar dedupe inicial si hay traslapes.
 - Generar un CSV largo final por job como salida principal.
 - Generar un CSV ancho final por job como salida opcional.
+- Registrar artifacts finales para que la API/webapp pueda encontrarlos.
 
 Criterios de cierre:
 
@@ -67,6 +86,14 @@ Criterios de cierre:
 - El CSV largo final tiene todas las estaciones/sensores disponibles en filas y columnas de contexto.
 - El CSV ancho final se genera como salida opcional.
 - El ZIP tecnico puede generarse o descargarse sin ser el flujo principal del usuario.
+- `pnpm run typecheck` y `pnpm run build` pasan.
+
+Estado:
+
+- Implementada la base local.
+- `runJob` genera `csv/final_long.csv`, `csv/final_wide.csv` opcional, `artifacts.json`, `logs.txt` y `result.zip`.
+- Validado con jobs de 1 hora y 7 dias usando chunks existentes.
+- ZIP tecnico queda como artifact opcional; el flujo principal es CSV largo.
 
 ## Fase A4: API local
 
@@ -78,12 +105,16 @@ Tareas:
 - Crear endpoint `GET /api/jobs/:id`.
 - Crear endpoint de logs.
 - Crear endpoint de artifacts/ZIP.
+- Crear endpoint de descarga directa del CSV largo final.
+- Crear endpoint de descarga opcional del CSV ancho final.
 
 Criterios de cierre:
 
 - Se puede crear un job via HTTP local.
 - Se puede consultar progreso.
-- Se puede descargar el ZIP.
+- Se puede descargar el CSV largo final.
+- Se puede descargar el CSV ancho si fue generado.
+- Se puede descargar el ZIP tecnico si existe.
 
 ## Fase A5: webapp local
 
@@ -154,6 +185,7 @@ Criterios de cierre:
 
 - Codigo fuente.
 - Scripts CLI preservados.
+- Tipos TypeScript preservados y actualizados.
 - Webapp.
 - Dockerfile.
 - Compose.

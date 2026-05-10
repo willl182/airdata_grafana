@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0",
+    "lib": ["ES2022"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "noEmitOnError": true,
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "strict": false,
+    "target": "ES2022",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.js", "scripts/**/*.js"],
+  "exclude": ["dist", "node_modules", ".pnpm-store", ".ms-playwright"]
+}

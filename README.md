@@ -53,6 +53,16 @@ pnpm run download:job -- examples/job.example.json
 pnpm run download:job -- examples/job.7d.example.json
 ```
 
+Al terminar, el job genera el CSV largo final y, si `outputWide` esta activo, un CSV ancho:
+
+```txt
+data/jobs/<jobId>/csv/final_long.csv
+data/jobs/<jobId>/csv/final_wide.csv
+data/jobs/<jobId>/artifacts.json
+data/jobs/<jobId>/logs.txt
+data/jobs/<jobId>/result.zip
+```
+
 Convertir los JSON descargados a CSV:
 
 ```bash
@@ -78,6 +88,11 @@ data/manifest.jsonl
 data/jobs/<jobId>/job.json
 data/jobs/<jobId>/chunks.jsonl
 data/jobs/<jobId>/raw/*.json
+data/jobs/<jobId>/csv/final_long.csv
+data/jobs/<jobId>/csv/final_wide.csv
+data/jobs/<jobId>/artifacts.json
+data/jobs/<jobId>/logs.txt
+data/jobs/<jobId>/result.zip
 data/jobs/<jobId>/manifest.jsonl
 data/csv/*.csv
 ```

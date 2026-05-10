@@ -4,6 +4,8 @@
 
 Listar las decisiones, accesos y validaciones que debe hacer el usuario mientras el agente implementa la V2.
 
+Estado actual: el motor local ya fue migrado a TypeScript y conserva los comandos publicos. La siguiente validacion relevante para el usuario es el formato final de outputs por job: CSV largo principal, CSV ancho opcional y artifacts tecnicos.
+
 ## Fase U0: decisiones iniciales
 
 Decidir:
@@ -47,6 +49,12 @@ Decision tomada:
 
 - El CSV largo sera la salida principal porque facilita procesamiento en R.
 - El CSV ancho queda como salida opcional para revision rapida o Excel.
+
+Siguiente validacion:
+
+- Revisar un CSV largo final generado desde un job completo, no solo CSVs intermedios por chunk.
+- Confirmar si la clave de dedupe propuesta elimina duplicados sin perder mediciones validas.
+- Confirmar columnas minimas esperadas para R: tiempo, sensor, valor, unidad si existe, ref_id, frame_index, chunk/source.
 
 ## Fase U2: preparar VPS
 
@@ -128,7 +136,9 @@ Validaciones:
 - La webapp abre.
 - Se puede crear un job de 1 hora.
 - El job termina.
-- Se puede descargar ZIP.
+- Se puede descargar el CSV largo final.
+- Se puede descargar el CSV ancho opcional si fue generado.
+- Se puede descargar ZIP tecnico si se habilita.
 - Los archivos persisten despues de reiniciar contenedor.
 
 ## Fase U5: prueba real
@@ -188,4 +198,7 @@ politica ante fallos:
 - [x] Confirmar formato CSV preferido.
 - [x] Validar muestra contra Grafana Inspect.
 - [x] Confirmar rango real objetivo.
+- [ ] Validar CSV largo final por job.
+- [ ] Validar CSV ancho opcional por job.
+- [ ] Confirmar clave de dedupe.
 - [ ] Confirmar politica de retencion.

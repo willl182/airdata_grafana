@@ -6,11 +6,14 @@ Construir una V2 del descargador de Grafana que pueda correr en un VPS con Docke
 
 Esta etapa no busca construir una plataforma compleja. Busca pasar de scripts locales funcionales a una herramienta operable en nube, con estado, progreso y resultados descargables.
 
+Actualizacion tecnica: el nucleo local ya fue migrado de JavaScript a TypeScript manteniendo CommonJS y los comandos publicos. La V2 debe seguir desarrollandose sobre `src/grafana/*.ts`, con compilacion a `dist/` antes de ejecutar los wrappers CLI.
+
 ## Resultado esperado
 
 Al cierre de esta etapa debe existir:
 
 - Motor de descarga por jobs.
+- Nucleo TypeScript tipado para el motor de Grafana.
 - Division automatica por ventanas temporales.
 - Reanudacion de jobs incompletos.
 - Exportacion principal en CSV largo.
@@ -45,6 +48,22 @@ data/jobs/<jobId>/
   result.zip opcional
 ```
 
+Base tecnica actual:
+
+```txt
+src/grafana/*.ts
+  common.ts
+  jobs.ts
+  csv.ts
+  downloader.ts
+  explorer.ts
+  index.ts
+  types.ts
+
+scripts/*.js -> wrappers CLI
+dist/ -> salida compilada, no versionada
+```
+
 ## Decision de infraestructura
 
 La ruta recomendada para esta etapa es:
@@ -69,6 +88,7 @@ Posibles usos posteriores:
 ## Principios de ejecucion
 
 - Primero estabilizar el motor, despues construir UI.
+- Desarrollar el motor en TypeScript y validar con `pnpm run typecheck` y `pnpm run build`.
 - Todo job debe poder reanudarse.
 - Nunca depender de una unica consulta grande.
 - Guardar siempre JSON crudo.
@@ -80,16 +100,17 @@ Posibles usos posteriores:
 ## Camino critico
 
 ```txt
-1. Motor por job
+1. Motor TypeScript por job
 2. Chunks reanudables
 3. CSV largo principal y CSV ancho opcional
-4. Webapp local
-5. Docker local
-6. VPS
-7. Robustez
+4. API local
+5. Webapp local
+6. Docker local
+7. VPS
+8. Robustez
 ```
 
-Las fases 1 a 6 son secuenciales en el camino critico. Hay tareas de preparacion que el usuario puede ejecutar en paralelo, descritas en `subplan_usuario_v2.md`.
+Las fases 1 a 8 son secuenciales en el camino critico. Hay tareas de preparacion que el usuario puede ejecutar en paralelo, descritas en `subplan_usuario_v2.md`.
 
 ## Fases
 
@@ -116,16 +137,24 @@ Responsables:
 - Usuario: accesos, dominio, VPS.
 - Agente: checklist y documentacion.
 
-### Fase 1: motor V2 local
+### Fase 1: motor V2 local en TypeScript
 
 Objetivo: convertir los scripts actuales en funciones reutilizables por CLI, API y worker.
 
 Salidas:
 
-- `src/grafana/`
+- `src/grafana/*.ts`
+- tipos compartidos en `src/grafana/types.ts`
+- compilacion a `dist/`
 - ejecucion por `job.json`
 - compatibilidad con comandos actuales
+- validacion con `pnpm run typecheck` y `pnpm run build`
 - prueba local de 7 dias
+
+Estado:
+
+- Completada la migracion base a TypeScript.
+- Pendiente confirmar descarga real si Playwright requiere ejecucion fuera del sandbox.
 
 Bloquea:
 
@@ -146,12 +175,52 @@ Salidas:
 - reanudacion
 - limite inicial de 10 dias por job
 
+Estado:
+
+- Implementado motor inicial de jobs reanudables con `job.json`, `chunks.jsonl`, `manifest.jsonl` y salto de chunks existentes.
+- Siguiente ajuste: enlazar outputs finales A3 al ciclo de job.
+
 Bloquea:
 
 - Webapp util
 - Despliegue serio al VPS
 
-### Fase 3: webapp local
+### Fase 3: outputs finales de job
+
+Objetivo: convertir los JSON crudos por chunk en resultados finales ergonomicos para el usuario.
+
+Salidas:
+
+- CSV largo final por job como salida principal.
+- CSV ancho final opcional.
+- dedupe inicial para traslapes.
+- JSON crudo conservado como artifact interno.
+- ZIP tecnico opcional.
+- metadata de artifacts lista para API/webapp.
+
+Bloquea:
+
+- Webapp util
+- validacion de experiencia de usuario
+
+### Fase 4: API local
+
+Objetivo: exponer el motor por jobs desde HTTP local antes de crear la interfaz.
+
+Salidas:
+
+- `POST /api/jobs`
+- `GET /api/jobs`
+- `GET /api/jobs/:id`
+- endpoints de logs y artifacts
+- descarga directa del CSV largo final
+- descarga opcional del CSV ancho final
+
+Bloquea:
+
+- Webapp local
+
+### Fase 5: webapp local
 
 Objetivo: crear interfaz para lanzar, monitorear y descargar jobs.
 
@@ -168,9 +237,8 @@ Salidas:
 Bloquea:
 
 - Docker final
-- validacion de experiencia de usuario
 
-### Fase 4: Docker local
+### Fase 6: Docker local
 
 Objetivo: empaquetar la app para que corra igual en local y VPS.
 
@@ -186,7 +254,7 @@ Bloquea:
 
 - despliegue VPS
 
-### Fase 5: despliegue VPS
+### Fase 7: despliegue VPS
 
 Objetivo: dejar la V2 funcionando en Hostinger.
 
@@ -198,7 +266,7 @@ Salidas:
 - job de 1 hora exitoso
 - job de 7 dias exitoso
 
-### Fase 6: robustez
+### Fase 8: robustez
 
 Objetivo: mejorar operacion para datasets grandes.
 
@@ -219,6 +287,8 @@ Salidas posibles:
 
 - Motor antes de webapp.
 - Jobs reanudables antes de descargas largas.
+- Outputs finales antes de la webapp util.
+- API antes de la webapp.
 - Docker antes de VPS.
 - VPS estable antes de backups automatizados.
 
@@ -234,3 +304,4 @@ Salidas posibles:
 - `plan_v2.md`: referencia tecnica extensa.
 - `subplan_agente_v2.md`: tareas ejecutables por agente.
 - `subplan_usuario_v2.md`: tareas que debe hacer o decidir el usuario.
+- `plan_migracion.md`: registro de la migracion a TypeScript y siguientes endurecimientos.

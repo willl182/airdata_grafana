@@ -1,7 +1,20 @@
+/// <reference types="node" />
+
 const fs = require("fs");
 const path = require("path");
 
-const DEFAULT_CONFIG = {
+import type { GrafanaConfig, GrafanaPayload } from "./types";
+
+interface GrafanaRequestLike {
+  method(): string;
+  url(): string;
+  postData(): string | null;
+  postDataJSON(): unknown;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+const DEFAULT_CONFIG: GrafanaConfig = {
   dashboardUrl:
     "https://grafana.canair.io/d/UN_OsIo7k/tangara?orgId=1&from=now-1h&to=now&timezone=browser",
   panelTitle: "PM2.5 Sensores Cali",
@@ -22,8 +35,8 @@ const DEFAULT_CONFIG = {
   maxDataPoints: 2000,
 };
 
-function loadConfig(configPath = process.env.CONFIG || "config.local.json") {
-  let fileConfig = {};
+function loadConfig(configPath = process.env.CONFIG || "config.local.json"): GrafanaConfig {
+  let fileConfig: Partial<GrafanaConfig> = {};
 
   if (fs.existsSync(configPath)) {
     fileConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
@@ -32,7 +45,7 @@ function loadConfig(configPath = process.env.CONFIG || "config.local.json") {
   return applyEnvConfig({ ...DEFAULT_CONFIG, ...fileConfig });
 }
 
-function applyEnvConfig(input) {
+function applyEnvConfig(input: GrafanaConfig): GrafanaConfig {
   const config = { ...input };
 
   config.dashboardUrl = envOr(config.dashboardUrl, "DASHBOARD_URL");
@@ -65,29 +78,29 @@ function applyEnvConfig(input) {
   return config;
 }
 
-function envOr(value, name) {
+function envOr<T>(value: T, name: string): T | string {
   return process.env[name] === undefined ? value : process.env[name];
 }
 
-function numEnvOr(value, name) {
+function numEnvOr(value: number, name: string): number {
   return process.env[name] === undefined ? value : Number(process.env[name]);
 }
 
-function ensureDir(dir) {
+function ensureDir(dir: string): void {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function addDays(date, days) {
+function addDays(date: Date, days: number): Date {
   const next = new Date(date);
   next.setUTCDate(next.getUTCDate() + days);
   return next;
 }
 
-function toDate(value, fieldName) {
+function toDate(value: string | number | Date, fieldName: string): Date {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Fecha invalida en ${fieldName}: ${value}`);
@@ -95,11 +108,11 @@ function toDate(value, fieldName) {
   return date;
 }
 
-function formatStamp(date) {
+function formatStamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, "-");
 }
 
-function sanitizeName(value) {
+function sanitizeName(value: unknown): string {
   return String(value || "grafana")
     .normalize("NFKD")
     .replace(/[^\w.-]+/g, "_")
@@ -107,7 +120,7 @@ function sanitizeName(value) {
     .toLowerCase();
 }
 
-function buildDashboardUrl(baseUrl, from, to, timezone) {
+function buildDashboardUrl(baseUrl: string, from: Date, to: Date, timezone?: string): string {
   const url = new URL(baseUrl);
   url.searchParams.set("from", String(from.getTime()));
   url.searchParams.set("to", String(to.getTime()));
@@ -116,7 +129,7 @@ function buildDashboardUrl(baseUrl, from, to, timezone) {
   return url.toString();
 }
 
-function isLikelyDataRequest(request, responseUrl = "") {
+function isLikelyDataRequest(request: GrafanaRequestLike, responseUrl = ""): boolean {
   const url = responseUrl || request.url();
   if (request.method() !== "POST") return false;
   return (
@@ -127,14 +140,15 @@ function isLikelyDataRequest(request, responseUrl = "") {
   );
 }
 
-function hasGrafanaFrames(payload) {
+function hasGrafanaFrames(payload: unknown): payload is GrafanaPayload {
   if (!payload || typeof payload !== "object") return false;
-  const results = payload.results || payload.data?.results;
+  const typedPayload = payload as GrafanaPayload;
+  const results = typedPayload.results || typedPayload.data?.results;
   if (!results || typeof results !== "object") return false;
   return Object.values(results).some((result) => Array.isArray(result.frames));
 }
 
-function countFrames(payload) {
+function countFrames(payload: GrafanaPayload | null | undefined): { frames: number; rows: number } {
   const results = payload?.results || payload?.data?.results || {};
   let frames = 0;
   let rows = 0;
@@ -150,7 +164,12 @@ function countFrames(payload) {
   return { frames, rows };
 }
 
-function makeChunkFile(config, from, to, suffix = "json") {
+function makeChunkFile(
+  config: Pick<GrafanaConfig, "panelTitle" | "panelId" | "outDir">,
+  from: Date,
+  to: Date,
+  suffix = "json"
+): string {
   const panel = sanitizeName(config.panelTitle || config.panelId || "panel");
   return path.join(
     config.outDir,
@@ -159,12 +178,12 @@ function makeChunkFile(config, from, to, suffix = "json") {
   );
 }
 
-function appendJsonl(file, record) {
+function appendJsonl(file: string, record: JsonRecord): void {
   ensureDir(path.dirname(file));
   fs.appendFileSync(file, `${JSON.stringify(record)}\n`);
 }
 
-function safePostData(request) {
+function safePostData(request: GrafanaRequestLike): unknown {
   try {
     return request.postDataJSON();
   } catch {
